@@ -83,6 +83,25 @@ services:
     networks:
       - mlops-network
 
+  training:
+    build:
+      context: .
+      dockerfile: docker/training/Dockerfile
+    container_name: sentiment-training
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      MLFLOW_EXPERIMENT_NAME: sentiment-classifier
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    networks:
+      - mlops-network
+
 volumes:
   postgres_data:
   minio_data:

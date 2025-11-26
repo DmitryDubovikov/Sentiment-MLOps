@@ -18,9 +18,11 @@ RUN pip install --no-cache-dir \
 EXPOSE 5000
 
 # Start MLflow server (shell form to expand env variables)
+# --allowed-hosts: allow requests from Docker network and localhost
 CMD mlflow server \
     --host 0.0.0.0 \
     --port 5000 \
     --backend-store-uri "${MLFLOW_BACKEND_STORE_URI}" \
     --default-artifact-root "${MLFLOW_ARTIFACT_ROOT}" \
-    --serve-artifacts
+    --serve-artifacts \
+    --allowed-hosts "mlflow,mlflow:5000,localhost,localhost:5000,127.0.0.1"
