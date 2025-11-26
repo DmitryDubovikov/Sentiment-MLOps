@@ -25,4 +25,4 @@ CMD mlflow server \
     --backend-store-uri "${MLFLOW_BACKEND_STORE_URI}" \
     --default-artifact-root "${MLFLOW_ARTIFACT_ROOT}" \
     --serve-artifacts \
-    --allowed-hosts "mlflow,mlflow:5000,localhost,localhost:5000,127.0.0.1"
+    --allowed-hosts "mlflow,mlflow:5000,localhost,localhost:5000,localhost:5001,127.0.0.1"
