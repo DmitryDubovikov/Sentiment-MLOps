@@ -145,6 +145,20 @@ services:
       - mlops-network
     restart: unless-stopped
 
+  # Test runner service (run with: docker compose run --rm test)
+  test:
+    build:
+      context: .
+      dockerfile: docker/test/Dockerfile
+    container_name: sentiment-test
+    profiles:
+      - test
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./src:/app/src:ro
+      - ./app:/app/app:ro
+      - ./pipelines:/app/pipelines:ro
+
 volumes:
   postgres_data:
   minio_data:

@@ -24,6 +24,7 @@ def load_data_task(data_path: str) -> pd.DataFrame:
 def split_data_task(
     data: pd.DataFrame,
     test_size: float = 0.2,
+    random_state: int = 42,
 ) -> tuple[pd.Series, pd.Series, pd.Series, pd.Series]:
     """
     Split data into train/test sets.
@@ -31,11 +32,12 @@ def split_data_task(
     Args:
         data: DataFrame with 'text' and 'label' columns
         test_size: Fraction of data for test set
+        random_state: Random seed for reproducibility
 
     Returns:
         Tuple of (X_train, X_test, y_train, y_test)
     """
-    train_df, test_df = split_data(data, test_size=test_size)
+    train_df, test_df = split_data(data, test_size=test_size, random_state=random_state)
     return (
         train_df["text"],
         test_df["text"],

@@ -1,0 +1,150 @@
+name: Train Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      samples:
+        description: 'Number of training samples'
+        required: false
+        default: '2000'
+      promote_champion:
+        description: 'Promote to champion if better'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  train:
+    name: Train Sentiment Model
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: mlflow
+          POSTGRES_USER: mlflow
+          POSTGRES_PASSWORD: mlflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+        ports:
+          - 9000:9000
+          - 9001:9001
+        options: >-
+          --health-cmd "mc ready local"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        # Note: Service containers don't support custom commands well
+        # We'll use the default server mode
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Wait for MinIO and create buckets
+        run: |
+          # Install MinIO client
+          curl -LO https://dl.min.io/client/mc/release/linux-amd64/mc
+          chmod +x mc
+
+          # Configure MinIO client
+          ./mc alias set myminio http://localhost:9000 minioadmin minioadmin
+
+          # Wait for MinIO to be ready
+          for i in {1..30}; do
+            if ./mc ls myminio > /dev/null 2>&1; then
+              echo "MinIO is ready"
+              break
+            fi
+            echo "Waiting for MinIO... ($i/30)"
+            sleep 2
+          done
+
+          # Create buckets
+          ./mc mb myminio/mlflow-artifacts --ignore-existing
+          ./mc mb myminio/models --ignore-existing
+          ./mc mb myminio/data --ignore-existing
+
+      - name: Start MLflow server
+        run: |
+          uv run mlflow server \
+            --backend-store-uri postgresql://mlflow:mlflow@localhost:5432/mlflow \
+            --default-artifact-root s3://mlflow-artifacts \
+            --host 0.0.0.0 \
+            --port 5001 &
+
+          # Wait for MLflow to be ready
+          for i in {1..30}; do
+            if curl -s http://localhost:5001/health > /dev/null 2>&1; then
+              echo "MLflow is ready"
+              break
+            fi
+            echo "Waiting for MLflow... ($i/30)"
+            sleep 2
+          done
+        env:
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
+          MLFLOW_S3_ENDPOINT_URL: http://localhost:9000
+
+      - name: Prepare dataset
+        run: |
+          uv run python scripts/prepare_data.py \
+            --output data/imdb_sample.csv \
+            --samples ${{ github.event.inputs.samples || '2000' }} \
+            --seed 42
+
+      - name: Run training pipeline
+        run: |
+          CHAMPION_FLAG=""
+          if [ "${{ github.event.inputs.promote_champion }}" = "true" ]; then
+            CHAMPION_FLAG="--champion"
+          fi
+
+          uv run python -m pipelines.cli train \
+            --data-path data/imdb_sample.csv \
+            $CHAMPION_FLAG \
+            --output-metrics metrics.json
+        env:
+          MLFLOW_TRACKING_URI: http://localhost:5001
+          MLFLOW_S3_ENDPOINT_URL: http://localhost:9000
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
+          MLFLOW_EXPERIMENT_NAME: sentiment-classifier
+
+      - name: Upload metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-metrics
+          path: metrics.json
+
+      - name: Show training results
+        run: |
+          echo "=== Training Results ==="
+          cat metrics.json | python -m json.tool

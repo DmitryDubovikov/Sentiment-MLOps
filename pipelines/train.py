@@ -54,6 +54,8 @@ def training_flow(
     set_champion: bool = False,
     vectorizer_params: dict | None = None,
     model_params: dict | None = None,
+    test_size: float | None = None,
+    random_state: int | None = None,
 ) -> dict:
     """
     Training pipeline with MLflow logging and Model Registry.
@@ -66,6 +68,8 @@ def training_flow(
         set_champion: Whether to set 'champion' alias on new model
         vectorizer_params: Parameters for TF-IDF vectorizer
         model_params: Parameters for LogisticRegression
+        test_size: Fraction of data for test set (default: 0.2)
+        random_state: Random seed for reproducibility (default: 42)
 
     Returns:
         Dictionary with run_id, metrics, and optional version info
@@ -90,6 +94,10 @@ def training_flow(
             "C": 1.0,
             "max_iter": 1000,
         }
+    if test_size is None:
+        test_size = 0.2
+    if random_state is None:
+        random_state = 42
 
     print(f"Starting training flow with data: {data_path}")
 
@@ -97,7 +105,9 @@ def training_flow(
     data = load_data_task(data_path)
 
     # Task 2: Split data
-    X_train, X_test, y_train, y_test = split_data_task(data)
+    X_train, X_test, y_train, y_test = split_data_task(
+        data, test_size=test_size, random_state=random_state
+    )
 
     # Task 3: Create and train pipeline
     pipeline = train_model_task(

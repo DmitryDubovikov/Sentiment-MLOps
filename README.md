@@ -17,8 +17,11 @@ This project implements a production-like ML workflow for binary sentiment analy
 | Model Registry | MLflow Model Registry with Aliases |
 | Artifact Storage | MinIO (S3-compatible) |
 | Backend Store | PostgreSQL |
+| Data Versioning | DVC with S3 remote |
+| CI/CD | GitHub Actions |
 | Package Manager | uv |
 | Containerization | Docker Compose |
+| Code Quality | ruff, pre-commit |
 
 ## Quick Start
 
@@ -304,4 +307,266 @@ MINIO_ROOT_PASSWORD=minioadmin
 ```bash
 docker compose down        # Stop containers
 docker compose down -v     # Stop and remove volumes (clean reset)
+```
+
+## Development Setup
+
+### Local Development
+
+```bash
+# Install uv package manager (if not installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies
+uv sync --dev
+
+# Run linting
+uv run ruff check src/ app/ pipelines/
+uv run ruff format --check src/ app/ pipelines/
+
+# Run tests
+uv run pytest tests/ -v
+
+# Run tests with coverage
+uv run pytest tests/ --cov=src --cov=app --cov=pipelines --cov-report=term-missing
+```
+
+### Pre-commit Hooks
+
+```bash
+# Install pre-commit hooks
+uv run pre-commit install
+
+# Run all hooks manually
+uv run pre-commit run --all-files
+```
+
+Pre-commit hooks include:
+- **ruff**: Python linting and formatting
+- **trailing-whitespace**: Remove trailing whitespace
+- **end-of-file-fixer**: Ensure files end with newline
+- **check-yaml**: Validate YAML syntax
+- **detect-secrets**: Scan for accidentally committed secrets
+- **hadolint**: Dockerfile linting
+- **commitizen**: Commit message validation
+
+## Data Version Control (DVC)
+
+The project uses DVC for data versioning with MinIO as remote storage.
+
+### DVC Setup
+
+```bash
+# Initialize DVC (already done)
+dvc init
+
+# Configure MinIO remote (already configured in .dvc/config)
+dvc remote add -d minio s3://data
+dvc remote modify minio endpointurl http://localhost:9000
+```
+
+### DVC Commands
+
+```bash
+# Prepare dataset
+uv run python scripts/prepare_data.py --output data/imdb_sample.csv
+
+# Push data to remote
+dvc push
+
+# Pull data from remote
+dvc pull
+
+# Run DVC pipeline (prepare_data + train)
+dvc repro
+```
+
+### DVC Pipeline
+
+The `dvc.yaml` defines a reproducible pipeline:
+
+1. **prepare_data**: Downloads IMDb dataset and creates CSV
+2. **train**: Runs training with MLflow tracking
+
+```bash
+# View pipeline DAG
+dvc dag
+
+# Run specific stage
+dvc repro prepare_data
+dvc repro train
+```
+
+## CI/CD
+
+The project uses GitHub Actions for continuous integration and deployment.
+
+### Workflows
+
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| `ci.yml` | Push/PR | Lint, test, build images |
+| `train.yml` | Manual | Run training pipeline |
+| `release.yml` | Tag | Build & push to GHCR, create release |
+
+### CI Pipeline
+
+On every push and pull request:
+1. **Lint**: Run ruff linter and formatter check
+2. **Test**: Run pytest with coverage
+3. **Build**: Build Docker images (on main branch)
+
+### Manual Training
+
+Trigger training via GitHub Actions:
+1. Go to Actions → "Train Model"
+2. Click "Run workflow"
+3. Configure samples count and champion promotion
+4. View training metrics in artifacts
+
+### Release Process
+
+```bash
+# Create version tag
+git tag v1.0.0
+git push origin v1.0.0
+
+# GitHub Actions will:
+# - Build and push images to ghcr.io
+# - Create GitHub release with notes
+```
+
+## Testing
+
+### Test Structure
+
+```
+tests/
+├── conftest.py           # Shared fixtures
+├── unit/
+│   ├── test_data.py      # Data loading tests
+│   ├── test_model.py     # Model training tests
+│   └── test_preprocessing.py  # Text preprocessing tests
+└── integration/
+    └── test_api.py       # FastAPI endpoint tests
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest tests/ -v
+
+# Run unit tests only
+uv run pytest tests/unit/ -v
+
+# Run integration tests only
+uv run pytest tests/integration/ -v
+
+# Run with coverage
+uv run pytest tests/ --cov=src --cov=app --cov-report=html
+```
+
+## Production Deployment
+
+### Production Configuration
+
+Use `docker-compose.prod.yml` for production deployments:
+
+```bash
+# Set required environment variables
+export POSTGRES_USER=your_secure_user
+export POSTGRES_PASSWORD=your_secure_password
+export MINIO_ROOT_USER=your_minio_user
+export MINIO_ROOT_PASSWORD=your_minio_password
+
+# Start production stack
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Production Features
+
+- Resource limits on all containers
+- Health checks with stricter intervals
+- JSON logging for log aggregation
+- Nginx reverse proxy (optional profile)
+- No hot-reload (5-minute model check interval)
+- SSL/TLS ready configuration
+
+### With Nginx Reverse Proxy
+
+```bash
+# Start with nginx profile
+docker compose -f docker-compose.prod.yml --profile with-nginx up -d
+
+# Access services via nginx:
+# - API: http://localhost/api/
+# - MLflow: http://localhost/mlflow/
+# - MinIO: http://localhost/minio/
+```
+
+### SSL Configuration
+
+For production SSL:
+
+1. Place certificates in `docker/nginx/ssl/`:
+   - `cert.pem`: SSL certificate
+   - `key.pem`: Private key
+
+2. Uncomment HTTPS server block in `docker/nginx/nginx.conf`
+
+3. Enable HTTPS redirect in HTTP server block
+
+### Environment Variables
+
+Production environment requires these variables:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `POSTGRES_USER` | PostgreSQL username | Yes |
+| `POSTGRES_PASSWORD` | PostgreSQL password | Yes |
+| `MINIO_ROOT_USER` | MinIO access key | Yes |
+| `MINIO_ROOT_PASSWORD` | MinIO secret key | Yes |
+
+## Security
+
+### Dependabot
+
+Automated dependency updates are configured for:
+- Python packages (weekly)
+- Docker base images (weekly)
+- GitHub Actions (weekly)
+
+### Secrets Scanning
+
+Pre-commit hooks include `detect-secrets` to prevent accidental secret commits.
+
+Update baseline after intentional changes:
+```bash
+detect-secrets scan --baseline .secrets.baseline
+```
+
+## Project Structure
+
+```
+.
+├── app/                    # FastAPI serving application
+│   ├── main.py            # API endpoints
+│   ├── model_loader.py    # Model loading from MLflow
+│   └── schemas.py         # Pydantic models
+├── src/                    # Core ML logic
+│   ├── data.py            # Data loading utilities
+│   ├── model.py           # Model training
+│   └── preprocessing.py   # Text preprocessing
+├── pipelines/             # Prefect orchestration
+│   ├── train.py           # Training flow
+│   ├── cli.py             # CLI commands
+│   └── tasks/             # Prefect tasks
+├── tests/                 # Test suite
+├── scripts/               # Utility scripts
+├── docker/                # Docker configurations
+├── .github/               # GitHub Actions & Dependabot
+├── dvc.yaml               # DVC pipeline definition
+├── params.yaml            # Training parameters
+└── docker-compose.yml     # Local development stack
 ```

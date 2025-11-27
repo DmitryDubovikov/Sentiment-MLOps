@@ -7,6 +7,7 @@ Usage:
     python -m pipelines.cli train
     python -m pipelines.cli train --champion
     python -m pipelines.cli train --data-path data/imdb_sample.csv
+    python -m pipelines.cli train --params params.yaml --output-metrics metrics.json
 
     # Show champion model info
     python -m pipelines.cli model-info
@@ -17,6 +18,7 @@ Usage:
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -24,21 +26,52 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
+def load_params(params_path: str | None) -> dict:
+    """Load parameters from YAML file if provided."""
+    if params_path is None:
+        return {}
+
+    path = Path(params_path)
+    if not path.exists():
+        return {}
+
+    try:
+        import yaml
+
+        with open(path) as f:
+            return yaml.safe_load(f) or {}
+    except ImportError:
+        # Fallback to simple parsing if PyYAML not available
+        return {}
+
+
 def train_command(args: argparse.Namespace) -> None:
     """Run training flow."""
     from pipelines.train import training_flow
+
+    # Load parameters from file if provided
+    params = load_params(args.params)
+
+    # Extract parameters for training (if present in params file)
+    model_params = params.get("model", {})
+    vectorizer_params = params.get("vectorizer", {})
+    data_params = params.get("data", {})
 
     result = training_flow(
         data_path=args.data_path,
         register_model=args.register,
         set_champion=args.champion,
+        model_params=model_params if model_params else None,
+        vectorizer_params=vectorizer_params if vectorizer_params else None,
+        test_size=data_params.get("test_size"),
+        random_state=data_params.get("random_state"),
     )
 
     print("\n" + "=" * 50)
     print("Training completed!")
     print("=" * 50)
     print(f"Run ID: {result['run_id']}")
-    print(f"Metrics:")
+    print("Metrics:")
     for key, value in result["metrics"].items():
         print(f"  {key}: {value:.4f}")
 
@@ -48,6 +81,24 @@ def train_command(args: argparse.Namespace) -> None:
             print("Status: Set as champion")
         elif args.champion:
             print("Status: Not promoted (current champion is better)")
+
+    # Save metrics to file for DVC tracking
+    if args.output_metrics:
+        metrics_path = Path(args.output_metrics)
+        metrics_output = {
+            "accuracy": result["metrics"].get("accuracy", 0),
+            "f1": result["metrics"].get("f1", 0),
+            "precision": result["metrics"].get("precision", 0),
+            "recall": result["metrics"].get("recall", 0),
+            "run_id": result["run_id"],
+        }
+        if result["registered"]:
+            metrics_output["model_version"] = result["version"]
+            metrics_output["is_champion"] = result["is_champion"]
+
+        with open(metrics_path, "w") as f:
+            json.dump(metrics_output, f, indent=2)
+        print(f"\nMetrics saved to: {metrics_path}")
 
 
 def model_info_command(args: argparse.Namespace) -> None:
@@ -191,6 +242,18 @@ def main() -> None:
         "--champion",
         action="store_true",
         help="Set as champion if better than current",
+    )
+    train_parser.add_argument(
+        "--params",
+        type=str,
+        default=None,
+        help="Path to params.yaml file for DVC integration",
+    )
+    train_parser.add_argument(
+        "--output-metrics",
+        type=str,
+        default=None,
+        help="Path to output metrics.json for DVC tracking",
     )
     train_parser.set_defaults(func=train_command)
 

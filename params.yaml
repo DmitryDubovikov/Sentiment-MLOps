@@ -1,0 +1,18 @@
+# DVC Pipeline Parameters
+# These parameters define the training configuration
+
+model:
+  # LogisticRegression parameters
+  C: 1.0                    # Inverse of regularization strength
+  max_iter: 1000            # Maximum iterations
+  random_state: 42          # Random seed for reproducibility
+
+vectorizer:
+  # TF-IDF Vectorizer parameters
+  max_features: 5000        # Maximum vocabulary size
+  ngram_range: [1, 2]       # N-gram range (unigrams and bigrams)
+
+data:
+  # Data split parameters
+  test_size: 0.2            # Fraction for test set
+  random_state: 42          # Random seed for split

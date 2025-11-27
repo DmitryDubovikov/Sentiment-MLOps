@@ -58,22 +58,22 @@ htmlcov/
 !.env.example
 
 # Data (large files tracked by DVC)
-data/*.csv
-!data/.gitkeep
-data/raw/
-data/processed/
+/data/*.csv
+!/data/.gitkeep
+/data/raw/
+/data/processed/
 
 # Models (cached locally)
-models/*.pkl
-models/*.joblib
-!models/.gitkeep
+/models/*.pkl
+/models/*.joblib
+!/models/.gitkeep
 
 # MLflow local artifacts
 mlruns/
 mlartifacts/
 
-# DVC
-/data/*.csv.dvc
+# DVC cache
+/dvc.lock
 
 # OS
 .DS_Store

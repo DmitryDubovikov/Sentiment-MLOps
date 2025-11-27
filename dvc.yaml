@@ -1,0 +1,43 @@
+stages:
+  prepare_data:
+    cmd: python scripts/prepare_data.py --output data/imdb_sample.csv --samples 2000 --seed 42
+    deps:
+      - scripts/prepare_data.py
+      - src/data.py
+    outs:
+      - data/imdb_sample.csv:
+          cache: true
+          persist: true
+
+  train:
+    cmd: >-
+      python -m pipelines.cli train
+      --data-path data/imdb_sample.csv
+      --champion
+      --params params.yaml
+      --output-metrics metrics.json
+    deps:
+      - data/imdb_sample.csv
+      - src/model.py
+      - src/preprocessing.py
+      - src/data.py
+      - pipelines/train.py
+      - pipelines/tasks/
+    params:
+      - params.yaml:
+          - model.C
+          - model.max_iter
+          - model.random_state
+          - vectorizer.max_features
+          - vectorizer.ngram_range
+          - data.test_size
+    metrics:
+      - metrics.json:
+          cache: false
+
+plots:
+  - metrics.json:
+      x: run_id
+      y:
+        - accuracy
+        - f1

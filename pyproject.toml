@@ -28,12 +28,21 @@ dependencies = [
     # FastAPI serving
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
+    # Data versioning
+    "dvc>=3.56.0",
+    "dvc-s3>=3.2.0",
+    # Configuration
+    "pyyaml>=6.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "ruff>=0.8.0",
     "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+    "pre-commit>=4.0.0",
 ]
 
 [tool.ruff]
@@ -76,3 +85,17 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+source = ["src", "app", "pipelines"]
+branch = true
+omit = ["*/tests/*", "*/__init__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
