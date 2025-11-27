@@ -121,13 +121,13 @@ def model_info_command(args: argparse.Namespace) -> None:
         print("=" * 50)
         print(f"Model: {args.model_name}")
         print(f"Version: {version.version}")
-        print(f"Alias: champion")
+        print("Alias: champion")
         print(f"Run ID: {version.run_id}")
         print(f"Created: {version.creation_timestamp}")
-        print(f"\nMetrics:")
+        print("\nMetrics:")
         for key, value in sorted(run.data.metrics.items()):
             print(f"  {key}: {value:.4f}")
-        print(f"\nParameters:")
+        print("\nParameters:")
         for key, value in sorted(run.data.params.items()):
             print(f"  {key}: {value}")
 

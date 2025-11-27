@@ -14,11 +14,11 @@ import os
 import sys
 from pathlib import Path
 
+import mlflow
+
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
-
-import mlflow
 
 logging.basicConfig(
     level=logging.INFO,
@@ -64,7 +64,7 @@ def predict(model, texts: list[str]) -> list[dict]:
     probabilities = model.predict_proba(texts)
 
     results = []
-    for text, pred, proba in zip(texts, predictions, probabilities):
+    for text, pred, proba in zip(texts, predictions, probabilities, strict=True):
         sentiment = "positive" if pred == 1 else "negative"
         confidence = float(max(proba))
         results.append({

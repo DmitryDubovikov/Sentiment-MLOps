@@ -27,15 +27,14 @@ from prefect import flow
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.config import get_settings
-
-from pipelines.tasks.data_tasks import load_data_task, split_data_task
-from pipelines.tasks.mlflow_tasks import (
+from pipelines.tasks.data_tasks import load_data_task, split_data_task  # noqa: E402
+from pipelines.tasks.mlflow_tasks import (  # noqa: E402
     log_to_mlflow_task,
     register_model_task,
     set_champion_alias_task,
 )
-from pipelines.tasks.training_tasks import evaluate_task, train_model_task
+from pipelines.tasks.training_tasks import evaluate_task, train_model_task  # noqa: E402
+from src.config import get_settings  # noqa: E402
 
 # Configure logging
 logging.basicConfig(

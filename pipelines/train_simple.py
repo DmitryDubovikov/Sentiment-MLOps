@@ -24,9 +24,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.config import get_settings
-from src.data import download_imdb_subset, load_dataset, split_data
-from src.model import (
+from src.config import get_settings  # noqa: E402
+from src.data import download_imdb_subset, load_dataset, split_data  # noqa: E402
+from src.model import (  # noqa: E402
     create_training_pipeline,
     evaluate_model,
     get_pipeline_params,
@@ -64,10 +64,7 @@ def main(
     settings.configure_mlflow_environment()
 
     # Determine data path
-    if data_path is None:
-        data_path = settings.data_dir / "imdb_sample.csv"
-    else:
-        data_path = Path(data_path)
+    data_path = settings.data_dir / "imdb_sample.csv" if data_path is None else Path(data_path)
 
     # Download dataset if needed
     if download or not data_path.exists():
@@ -121,7 +118,7 @@ def main(
         input_example=["This movie is amazing!", "Terrible waste of time."],
     )
 
-    logger.info(f"Training completed successfully!")
+    logger.info("Training completed successfully!")
     logger.info(f"MLflow run ID: {run_id}")
     logger.info(f"Metrics: {metrics}")
     logger.info(f"View results at: {settings.mlflow_tracking_uri}")

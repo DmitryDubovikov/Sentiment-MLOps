@@ -1,6 +1,7 @@
 """FastAPI application for sentiment classification inference."""
 
 import asyncio
+import contextlib
 import logging
 from contextlib import asynccontextmanager
 
@@ -69,10 +70,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown: Cancel background task
     task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await task
-    except asyncio.CancelledError:
-        pass
     logger.info("FastAPI application shutdown complete")
 
 
@@ -116,10 +115,10 @@ async def predict(request: PredictRequest):
     try:
         sentiment, confidence = model_manager.predict(request.text)
     except ModelNotLoadedError:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+        raise HTTPException(status_code=503, detail="Model not loaded") from None
     except Exception as e:
         logger.error(f"Prediction error: {e}")
-        raise HTTPException(status_code=500, detail="Internal prediction error")
+        raise HTTPException(status_code=500, detail="Internal prediction error") from e
 
     return PredictResponse(
         sentiment=sentiment,
@@ -165,6 +164,6 @@ async def reload():
             version=model_manager.info.version if model_manager.info else None,
         )
     except ChampionNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except ModelLoadError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

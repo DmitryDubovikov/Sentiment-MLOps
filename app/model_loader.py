@@ -142,7 +142,7 @@ class ModelManager:
         preds = self.model.predict(texts)
 
         results = []
-        for pred, proba in zip(preds, probas):
+        for pred, proba in zip(preds, probas, strict=True):
             sentiment = "positive" if pred == 1 else "negative"
             confidence = float(max(proba))
             results.append((sentiment, confidence))
