@@ -67,10 +67,12 @@ def create_training_pipeline(
     vectorizer = create_vectorizer(**vectorizer_params)
     model = create_model(**model_params)
 
-    pipeline = Pipeline([
-        ("tfidf", vectorizer),
-        ("classifier", model),
-    ])
+    pipeline = Pipeline(
+        [
+            ("tfidf", vectorizer),
+            ("classifier", model),
+        ]
+    )
 
     return pipeline
 
@@ -152,11 +154,13 @@ def get_pipeline_params(pipeline: Pipeline) -> dict[str, Any]:
     # Model params
     classifier = pipeline.named_steps.get("classifier")
     if classifier:
-        params.update({
-            "model_C": classifier.C,
-            "model_max_iter": classifier.max_iter,
-            "model_solver": classifier.solver,
-        })
+        params.update(
+            {
+                "model_C": classifier.C,
+                "model_max_iter": classifier.max_iter,
+                "model_solver": classifier.solver,
+            }
+        )
 
     return params
 

@@ -99,7 +99,9 @@ def get_vectorizer_params(vectorizer: TfidfVectorizer) -> dict:
         "vectorizer_ngram_range": str(vectorizer.ngram_range),
         "vectorizer_min_df": vectorizer.min_df,
         "vectorizer_max_df": vectorizer.max_df,
-        "vectorizer_vocabulary_size": len(vectorizer.vocabulary_) if hasattr(vectorizer, "vocabulary_") else 0,
+        "vectorizer_vocabulary_size": len(vectorizer.vocabulary_)
+        if hasattr(vectorizer, "vocabulary_")
+        else 0,
     }
 
 

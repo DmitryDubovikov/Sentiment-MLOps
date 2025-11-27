@@ -32,7 +32,9 @@ def load_dataset(data_path: str | Path) -> pd.DataFrame:
     # Validate columns
     required_columns = {"text", "label"}
     if not required_columns.issubset(df.columns):
-        raise ValueError(f"Dataset must contain columns: {required_columns}. Found: {df.columns.tolist()}")
+        raise ValueError(
+            f"Dataset must contain columns: {required_columns}. Found: {df.columns.tolist()}"
+        )
 
     # Validate labels
     unique_labels = set(df["label"].unique())

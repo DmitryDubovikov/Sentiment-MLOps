@@ -58,7 +58,9 @@ async def lifespan(app: FastAPI):
         await model_manager.load_champion()
         logger.info(f"Initial model loaded: v{model_manager.info.version}")
     except ChampionNotFoundError:
-        logger.warning("No champion model available at startup. API will return 503 until model is available.")
+        logger.warning(
+            "No champion model available at startup. API will return 503 until model is available."
+        )
     except Exception as e:
         logger.error(f"Failed to load initial model: {e}")
 

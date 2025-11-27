@@ -200,9 +200,7 @@ def list_versions_command(args: argparse.Namespace) -> None:
         print("-" * 70)
 
         for v in versions:
-            version_aliases = [
-                alias for alias, ver in aliases.items() if ver == v.version
-            ]
+            version_aliases = [alias for alias, ver in aliases.items() if ver == v.version]
             alias_str = ", ".join(version_aliases) if version_aliases else "-"
             print(f"{v.version:<10} {v.run_id:<36} {alias_str:<20}")
 

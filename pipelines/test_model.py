@@ -67,11 +67,13 @@ def predict(model, texts: list[str]) -> list[dict]:
     for text, pred, proba in zip(texts, predictions, probabilities, strict=True):
         sentiment = "positive" if pred == 1 else "negative"
         confidence = float(max(proba))
-        results.append({
-            "text": text[:100] + "..." if len(text) > 100 else text,
-            "sentiment": sentiment,
-            "confidence": confidence,
-        })
+        results.append(
+            {
+                "text": text[:100] + "..." if len(text) > 100 else text,
+                "sentiment": sentiment,
+                "confidence": confidence,
+            }
+        )
 
     return results
 
@@ -123,7 +125,7 @@ def main():
     for r in results:
         emoji = "👍" if r["sentiment"] == "positive" else "👎"
         print(f"\n{emoji} {r['sentiment'].upper()} ({r['confidence']:.1%})")
-        print(f"   \"{r['text']}\"")
+        print(f'   "{r["text"]}"')
 
     print("\n" + "=" * 60)
 
