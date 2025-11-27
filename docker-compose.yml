@@ -124,6 +124,27 @@ services:
     networks:
       - mlops-network
 
+  fastapi:
+    build:
+      context: .
+      dockerfile: docker/fastapi/Dockerfile
+    container_name: sentiment-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MODEL_NAME: sentiment-classifier
+      MODEL_RELOAD_INTERVAL: "60"
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    networks:
+      - mlops-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:

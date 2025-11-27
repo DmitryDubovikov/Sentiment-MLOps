@@ -1,16 +1,17 @@
 # Sentiment MLOps
 
-End-to-end MLOps pipeline for sentiment classification using scikit-learn, MLflow, Prefect, and Docker.
+End-to-end MLOps pipeline for sentiment classification using scikit-learn, MLflow, Prefect, FastAPI, and Docker.
 
 ## Overview
 
-This project implements a production-like ML workflow for binary sentiment analysis (positive/negative reviews). It demonstrates experiment tracking, model versioning, artifact storage, orchestration, and containerized training.
+This project implements a production-like ML workflow for binary sentiment analysis (positive/negative reviews). It demonstrates experiment tracking, model versioning, artifact storage, orchestration, model serving, and containerized deployment.
 
 ### Tech Stack
 
 | Component | Technology |
 |-----------|------------|
 | ML Framework | scikit-learn (LogisticRegression + TF-IDF) |
+| Model Serving | FastAPI + uvicorn |
 | Experiment Tracking | MLflow 3.x |
 | Orchestration | Prefect 3.x |
 | Model Registry | MLflow Model Registry with Aliases |
@@ -38,7 +39,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-**Expected:** 5 services running (postgres, minio, mlflow, prefect-server, training)
+**Expected:** 6 services running (postgres, minio, mlflow, prefect-server, training, fastapi)
 
 ### Step 2: Verify Web UIs
 
@@ -47,6 +48,7 @@ docker compose ps
 | Prefect UI | http://localhost:4200 | Dashboard with empty Flow Runs |
 | MLflow UI | http://localhost:5001 | Experiments page |
 | MinIO Console | http://localhost:9001 | Login: `minioadmin` / `minioadmin` |
+| FastAPI Docs | http://localhost:8000/docs | Swagger UI (API unhealthy until champion model exists) |
 
 ### Step 3: Run First Training
 
@@ -113,7 +115,34 @@ Refresh http://localhost:5001 → Models → sentiment-classifier:
 - Version 2 now has alias **champion**
 - Click on Version 2 to see alias details
 
-### Step 8: Use CLI Commands
+### Step 8: Test FastAPI Inference API
+
+Now that a champion model exists, the API is ready:
+
+```bash
+# Check API health
+curl http://localhost:8000/health
+# Expected: {"status":"healthy","model_loaded":true}
+
+# Get sentiment prediction
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "This movie is amazing!"}'
+# Expected: {"sentiment":"positive","confidence":0.73,"model_version":"2"}
+
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Terrible film, waste of time"}'
+# Expected: {"sentiment":"negative","confidence":0.65,"model_version":"2"}
+
+# Get current model info
+curl http://localhost:8000/model-info
+# Expected: {"model_name":"sentiment-classifier","version":"2","alias":"champion",...}
+```
+
+Or use Swagger UI at http://localhost:8000/docs
+
+### Step 9: Use CLI Commands
 
 ```bash
 # Show champion model info
@@ -127,7 +156,7 @@ docker compose exec training uv run python -m pipelines.cli set-alias \
     --model-name sentiment-classifier --version 1 --alias challenger
 ```
 
-### Step 9: Test Champion Comparison
+### Step 10: Test Champion Comparison & Auto-Reload
 
 Run training again with `--champion`:
 
@@ -141,7 +170,13 @@ docker compose exec training uv run python -m pipelines.cli train --champion
 
 Check MLflow UI to verify which version has the `champion` alias.
 
-### Step 10: View All Flow Runs in Prefect
+**API auto-reload:** FastAPI checks for new champion models every 60 seconds. After promoting a new champion, the API will automatically load it. You can also force reload:
+
+```bash
+curl -X POST http://localhost:8000/admin/reload
+```
+
+### Step 11: View All Flow Runs in Prefect
 
 Open http://localhost:4200 → Flow Runs:
 
@@ -159,10 +194,34 @@ Open http://localhost:4200 → Flow Runs:
 | `list-versions` | List all model versions with aliases |
 | `set-alias` | Manually set alias on model version |
 
+## API Reference
+
+FastAPI inference service available at http://localhost:8000
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check (model loaded status) |
+| `/predict` | POST | Get sentiment prediction |
+| `/model-info` | GET | Current model version and metrics |
+| `/admin/reload` | POST | Force model reload from registry |
+| `/docs` | GET | Swagger UI |
+
+**Example requests:**
+
+```bash
+# Predict sentiment
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Great product, highly recommend!"}'
+
+# Response: {"sentiment":"positive","confidence":0.82,"model_version":"2"}
+```
+
 ## Web Interfaces
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
+| FastAPI Docs | http://localhost:8000/docs | — |
 | MLflow UI | http://localhost:5001 | — |
 | Prefect UI | http://localhost:4200 | — |
 | MinIO Console | http://localhost:9001 | minioadmin / minioadmin |
@@ -210,6 +269,16 @@ Open http://localhost:4200:
    - Task execution timeline
    - Logs and outputs
 3. **Flows** — registered flow definitions
+
+### FastAPI Service
+
+Open http://localhost:8000/docs for interactive Swagger UI:
+
+1. **Try endpoints** — test predictions directly in browser
+2. **Schema** — view request/response models
+3. **Auto-reload** — model updates automatically when new champion is promoted (every 60s)
+
+**Note:** API returns 503 until a champion model exists. Run training with `--champion` first.
 
 ## Model Registry Strategy
 
