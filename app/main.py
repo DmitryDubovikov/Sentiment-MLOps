@@ -25,6 +25,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Reduce noisy logs from dependencies
+logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)  # retry warnings
+logging.getLogger("mlflow").setLevel(logging.WARNING)  # progress bars, debug info
+
 # Configure MLflow environment
 settings.configure_mlflow_environment()
 

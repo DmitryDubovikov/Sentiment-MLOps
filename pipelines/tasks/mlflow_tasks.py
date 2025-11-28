@@ -59,9 +59,10 @@ def log_to_mlflow_task(
         # Log model
         mlflow.sklearn.log_model(
             sk_model=pipeline,
-            artifact_path="model",
+            name="model",  # Changed from artifact_path (deprecated)
             signature=signature,
             input_example=input_example,
+            pip_requirements=["scikit-learn", "pandas", "numpy"],  # Explicit pip deps
         )
 
         return run.info.run_id

@@ -50,6 +50,7 @@ services:
       mc mb myminio/mlflow-artifacts --ignore-existing;
       mc mb myminio/models --ignore-existing;
       mc mb myminio/data --ignore-existing;
+      mc mb myminio/dvc --ignore-existing;
       echo 'Buckets created successfully';
       exit 0;
       "
@@ -102,33 +103,12 @@ services:
     networks:
       - mlops-network
 
-  training:
-    build:
-      context: .
-      dockerfile: docker/training/Dockerfile
-    container_name: sentiment-training
-    environment:
-      MLFLOW_TRACKING_URI: http://mlflow:5000
-      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
-      MLFLOW_EXPERIMENT_NAME: sentiment-classifier
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
-      PREFECT_API_URL: http://prefect-server:4200/api
-    depends_on:
-      mlflow:
-        condition: service_healthy
-      prefect-server:
-        condition: service_healthy
-    volumes:
-      - ./data:/app/data
-    networks:
-      - mlops-network
-
-  fastapi:
+  # FastAPI serving (always running)
+  api:
     build:
       context: .
       dockerfile: docker/fastapi/Dockerfile
-    container_name: sentiment-fastapi
+    container_name: sentiment-api
     ports:
       - "8000:8000"
     environment:
@@ -145,19 +125,37 @@ services:
       - mlops-network
     restart: unless-stopped
 
-  # Test runner service (run with: docker compose run --rm test)
-  test:
+  # Universal CLI container for all commands
+  # Usage: docker compose run --rm cli <command>
+  cli:
     build:
       context: .
-      dockerfile: docker/test/Dockerfile
-    container_name: sentiment-test
+      dockerfile: docker/cli/Dockerfile
+    container_name: sentiment-cli
     profiles:
-      - test
+      - cli
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MLFLOW_EXPERIMENT_NAME: sentiment-classifier
+      PREFECT_API_URL: http://prefect-server:4200/api
+      # DVC remote config (inside container, minio is accessible via docker network)
+      DVC_REMOTE_URL: s3://dvc
+      DVC_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      mlflow:
+        condition: service_healthy
+      prefect-server:
+        condition: service_healthy
     volumes:
-      - ./tests:/app/tests:ro
-      - ./src:/app/src:ro
-      - ./app:/app/app:ro
-      - ./pipelines:/app/pipelines:ro
+      - ./data:/app/data
+      - ./models:/app/models
+    networks:
+      - mlops-network
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres_data:

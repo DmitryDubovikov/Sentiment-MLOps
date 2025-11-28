@@ -207,10 +207,10 @@ def log_model_to_mlflow(
         # Log model with signature
         mlflow.sklearn.log_model(
             sk_model=pipeline,
-            artifact_path="model",
+            name="model",  # Changed from artifact_path (deprecated)
             signature=signature,
             input_example=input_example,
-            registered_model_name=None,  # Don't register yet (will do in iteration 2)
+            pip_requirements=["scikit-learn", "pandas", "numpy"],  # Explicit pip deps
         )
 
         run_id = run.info.run_id
